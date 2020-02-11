@@ -92,13 +92,5 @@ textarea {
  width: 100%;
  height: 100%;
 }
-.image-container {
- display: flex;
- justify-content: center;
-}
 
-img {
- width: 70%;
- cursor: pointer;
-}
 </style>

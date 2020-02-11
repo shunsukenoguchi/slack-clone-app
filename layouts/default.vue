@@ -2,8 +2,18 @@
   <div class="app-layout">
     <div class="sidebar">
       <p>チャンネル一覧</p>
+      <input type="text" placeholder="チャンネルの追加" v-model="name" v-if="isAuthenticated" v-on:keydown.enter="addMessage">
+      <input type="text" placeholder="チャンネルの追加" v-model="name" v-else v-on:click="openLoginModal">
+      <el-dialog
+        title=""
+        :visible.sync="dialogVisible"
+        width="30%">
+        <div class="image-container">
+          <img src="~/assets/btn_google_signin_light_normal_web@2x.png" v-on:click="login"/>
+        </div>
+    </el-dialog>
       <p v-for="(channel,index) in channels" :key="index" >
-        <nuxt-link :to="`/channels/${channel.id}`">{{ channel.name }}</nuxt-link>
+        <nuxt-link :to="`/channels/${channel.id}`" class="link">{{ channel.name }}</nuxt-link>
       </p>
       <p v-if="isAuthenticated" class="logout" v-on:click="logout">ログアウト</p>
     </div>
@@ -19,7 +29,9 @@ import { mapActions } from 'vuex'
 export default {
   data () {
     return {
-      channels: []
+      channels: [],
+      name:null,
+      dialogVisible: false,
     }
   },
   computed: {
@@ -29,6 +41,35 @@ export default {
   },
   methods: {
     ...mapActions(['setUser']),
+      addMessage(event) {
+        if (this.keyDownedForJPConversion(event)) { return }
+        const channelId = this.$route.params.id
+        db.collection('channels').add({
+          name:this.name,
+          createdAt: new Date().getTime(),
+        }).then(() => {
+          this.name = null
+        })
+      },
+      keyDownedForJPConversion (event) {
+          const codeForConversion = 229
+          return event.keyCode === codeForConversion
+      },
+       openLoginModal(){
+        this.dialogVisible = true
+      },
+      login() {
+        const provider = new firebase.auth.GoogleAuthProvider()
+        firebase.auth().signInWithPopup(provider)
+        .then((result) => {
+          const user = result.user
+          this.setUser(user)
+          console.log(this.$store.state.user)
+          this.dialogVisible = false
+        }).catch((error) => {
+          window.alert(error)
+        })
+      },
     logout() {
       firebase.auth().signOut()
         .then(() => {
@@ -51,12 +92,21 @@ export default {
        })
       }
     })
-    db.collection('channels').get()
-      .then((querySnapshot) => {
-        querySnapshot.forEach((doc) => {
-           this.channels.push({id: doc.id, ...doc.data()})
+    // db.collection('channels').get()
+    //   .then((querySnapshot) => {
+    //     querySnapshot.forEach((doc) => {
+    //        this.channels.push({id: doc.id, ...doc.data()})
 
-        })
+    //     })
+    //   })
+    db.collection('channels').orderBy('createdAt')
+      .onSnapshot((snapshot) => {
+          snapshot.docChanges().forEach((change) => {
+              const doc = change.doc
+              if (change.type === 'added') {
+                  this.channels.push({id: doc.id, ...doc.data()})
+              }
+          })
       })
   }
 }
@@ -122,10 +172,15 @@ html {
 
  height: 100vh;
  padding: 20px;
+ color: #DDDDDD;
+ overflow: scroll;
 }
 .sidebar p {
-  color: #DDDDDD;
+  
   padding-top: 4px;
+}
+.link{
+  color: #DDDDDD;
 }
 
 .main-content {
@@ -140,5 +195,13 @@ html {
   position: absolute;
   bottom: 10px;
   cursor: pointer;
+}
+.image-container {
+ display: flex;
+ justify-content: center;
+}
+img {
+ width: 70%;
+ cursor: pointer;
 }
 </style>
